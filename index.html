@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Permainan Kosa Kata BM-CN-EN</title>
+<style>
+  body {
+    font-family: 'Comic Neue', 'Comic Sans MS', cursive, sans-serif;
+    background: linear-gradient(to bottom, #ffecd2, #fcb69f);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100vh; margin: 0; text-align: center;
+  }
+  h1 { color: #ff5722; margin-bottom: 10px; }
+  #game-box {
+    background: white; padding: 20px; border-radius: 15px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2); max-width: 420px; width: 92%;
+  }
+  .word { font-size: 1.8em; font-weight: bold; margin-bottom: 20px; color: #333; }
+  .option{ display:flex; align-items:center; justify-content:center; gap:10px; width:100%; padding:12px 14px; border-radius:12px; line-height:1.25; white-space:normal; background:#ff9800; color:#fff; border:none; cursor:pointer; transition:transform .15s ease, filter .15s ease; font-size:1.05em; font-weight:700; }
+.option:hover{ filter:brightness(.95); transform:translateY(-1px); }
+.option.correct{ background:#4caf50 !important; }
+.option.wrong{ background:#e91e63 !important; }
+.opt-badge{ display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:999px; background:rgba(255,255,255,.25); font-weight:800; }
+  .option:hover { background: #f57c00; transform: scale(1.05); }
+  #score, #timer, #progress { font-size: 1.1em; margin: 8px 0; }
+  .correct { background: #4caf50 !important; }
+  .wrong { background: #e91e63 !important; }
+
+  /* Mesej tengah */
+  #message { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 1000; }
+  .msg {
+    display: inline-flex; align-items: center; gap: .6rem; padding: .8rem 1.4rem; border-radius: 20px;
+    font-size: clamp(22px, 5vw, 42px); font-weight: 900; color: #fff;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3); transform: scale(.3); opacity: 0;
+  }
+  .msg.success { background: linear-gradient(135deg,#00c853,#64dd17); border: 3px solid #aeea00; }
+  .msg.error   { background: linear-gradient(135deg,#ff5252,#e91e63); border: 3px solid #ff8a80; }
+  .msg.show { animation: popKids 500ms cubic-bezier(.25,.9,.35,1) forwards; }
+  @keyframes popKids {
+    0% { transform: scale(.3); opacity: 0; }
+    30% { transform: scale(1.2); opacity: 1; }
+    70% { transform: scale(1.0); opacity: 1; }
+    100% { transform: scale(.95); opacity: 0; }
+  }
+
+  /* Confetti canvas */
+  #fx { position: fixed; inset: 0; pointer-events: none; z-index: 999; }
+
+  /* Paparan tamat */
+  #end-screen {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.5); z-index: 2000; visibility: hidden;
+  }
+  #end-card { background: #fff; padding: 22px 26px; border-radius: 15px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); max-width: 360px; }
+  #end-card h2 { color: #ff5722; margin: 0 0 12px; }
+  #end-card button { background: #ff9800; border: none; color: #fff; padding: 10px 20px; border-radius: 10px; font-size: 1em; cursor: pointer; margin-top: 12px; }
+  #end-card button:hover { background: #f57c00; }
+  #options{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; align-items:stretch; }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+.music-controls{ margin:10px 0 0; display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap; }
+.mc-label{ font-weight:700; padding:6px 10px; border-radius:10px; background:#f3e9ff; color:#5e2a9a; }
+.mc-btn{ border:none; padding:8px 14px; border-radius:10px; cursor:pointer; font-weight:700; color:#fff; background:#2ecc71; }
+.mc-btn.alt{ background:#3498db; }
+.mc-btn.pause{ background:#e74c3c; }
+#answer-mode{ display:inline-flex; align-items:center; gap:8px; margin:8px 0 14px; padding:0; background:transparent; box-shadow:none; border-radius:0; }
+#ans-mode{ border:1px solid #ddd; border-radius:8px; padding:4px 8px; font-weight:700; }
+</style>
+
+
+
+
+<style>
+  .volume-wrap{ display:flex; align-items:center; gap:8px; justify-content:center; margin:6px 0 8px; }
+  #bgm-vol{ width:200px; }
+  #bgm-vol-val{ font-weight:700; color:#5e2a9a; }
+</style>
+</head>
+<body>
+  <h1>🎯 Permainan Kosa Kata</h1>
+
+  <div id="music-controls" class="music-controls">
+    <span class="mc-label">Kawalan Muzik</span>
+    <button id="toggle-bgm" class="mc-btn">▶️ Mula Muzik</button>
+  </div>
+  <div id="volume-wrap" class="volume-wrap">
+    <label for="bgm-vol">Laras Volum:</label>
+    <input type="range" id="bgm-vol" min="0" max="100" value="60" />
+    <span id="bgm-vol-val">60%</span>
+  </div>
+  <div id="answer-mode">
+  <label for="ans-mode">Pilihan Jawapan:</label>
+  <select id="ans-mode">
+    <option value="mix">Campur (中+EN)</option>
+    <option value="en">Inggeris sahaja (EN)</option>
+    <option value="cn">Cina sahaja (中)</option>
+  </select>
+</div>
+
+  <audio id="bgm-audio" src="SakuraGirlDaisychosic.com.mp3" preload="auto" loop style="display:none"></audio>
+  
+<div id="game-box">
+    <div id="timer">⏳ Masa: 0:00</div>
+    <div id="score">Markah: 0</div>
+    <div id="progress">Soalan: 0/21</div>
+    <div class="word" id="word">...</div>
+    <div id="options"></div>
+  </div>
+
+  <div id="message" aria-live="polite" role="status"></div>
+  <canvas id="fx"></canvas>
+
+  <!-- End screen -->
+  <div id="end-screen">
+    <div id="end-card">
+      <h2>Permainan Tamat!</h2>
+      <p id="final-score"></p>
+      <p id="final-time"></p>
+      <button id="restart">Ulang Semula</button>
+    </div>
+  </div>
+
+
+<script>
+// ====== DATA 21 soalan ======
+const vocab = [
+  { bm: "Pemergian", cn: "离去", en: "Departure" },
+  { bm: "Menyentuh", cn: "轻触", en: "Touch" },
+  { bm: "Penduduk", cn: "居民", en: "Resident" },
+  { bm: "Perasaan", cn: "感受", en: "Feeling" },
+  { bm: "Saudara-mara", cn: "亲戚", en: "Relatives" },
+  { bm: "Kenal", cn: "认识", en: "Know" },
+  { bm: "Segan", cn: "羞", en: "Shy" },
+  { bm: "Kebahagiaan", cn: "幸福", en: "Happiness" },
+  { bm: "Kesihatan", cn: "健康", en: "Health" },
+  { bm: "Pelajaran", cn: "学习", en: "Study" },
+  { bm: "Pekerjaan", cn: "工作", en: "Job" },
+  { bm: "Kecantikan", cn: "美丽", en: "Beauty" },
+  { bm: "Kekuatan", cn: "力量", en: "Strength" },
+  { bm: "Kelemahan", cn: "弱点", en: "Weakness" },
+  { bm: "Kemerdekaan", cn: "独立", en: "Independence" },
+  { bm: "Pertolongan", cn: "帮助", en: "Help" },
+  { bm: "Perjumpaan", cn: "聚会", en: "Meeting" },
+  { bm: "Pertandingan", cn: "比赛", en: "Competition" },
+  { bm: "Perkongsian", cn: "分享", en: "Sharing" },
+  { bm: "Persahabatan", cn: "友谊", en: "Friendship" },
+  { bm: "Penerokaan", cn: "探索", en: "Exploration" }
+];
+// Tetapkan lalai & senarai aktif selepas data ada
+window.defaultVocab = vocab.slice();
+try{
+  const saved = localStorage.getItem('vocabCustom');
+  window.vocab = saved ? JSON.parse(saved) : vocab.slice();
+}catch(e){ window.vocab = vocab.slice(); }
+
+// ====== STATE ======
+let score = 0, answeredCount = 0;
+let questions = [], currentQ = null;
+function getTotalQuestions(){ return (window.vocab||[]).length; }
+let timer = null, startTime = 0, elapsed = 0;
+let animTimeout;
+
+// ====== UTIL ======
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } }
+
+// ====== TIMER ======
+function startTimer(){
+  startTime = Date.now();
+  if (timer) clearInterval(timer);
+  timer = setInterval(()=>{
+    elapsed = Math.floor((Date.now()-startTime)/1000);
+    const m = Math.floor(elapsed/60), s = elapsed%60;
+    document.getElementById('timer').innerText = `⏳ Masa: ${m}:${s.toString().padStart(2,'0')}`;
+  },1000);
+}
+
+// ====== UI MESSAGE ======
+function showMessage({text, type='success', after}){
+  const holder = document.getElementById('message');
+  clearTimeout(animTimeout);
+  holder.innerHTML = `<div class="msg ${type}">${text}</div>`;
+  const badge = holder.firstElementChild;
+  requestAnimationFrame(()=> badge.classList.add('show'));
+  animTimeout = setTimeout(()=>{
+    badge.classList.remove('show');
+    if (typeof after === 'function') after();
+  }, 700);
+}
+
+// ====== CONFETTI (library) ======
+function launchConfetti(){
+  const duration = 700; // lebih pantas & natural
+  const end = Date.now() + duration;
+  (function frame(){
+    confetti({ particleCount: 5, angle: 60, spread: 60, startVelocity: 45, gravity: 0.9, origin: {x:0}, colors: ['#ff0','#0f0','#00f','#f0f']});
+    confetti({ particleCount: 5, angle: 120, spread: 60, startVelocity: 45, gravity: 0.9, origin: {x:1}, colors: ['#ff0','#0f0','#00f','#f0f']});
+    if (Date.now() < end) requestAnimationFrame(frame);
+  })();
+}
+
+// ====== PILIHAN JAWAPAN (helpers) ======
+function buildOptionsFor(q){
+  const mode = localStorage.getItem('ansLangMode') || 'mix';
+  let correctLang = (mode==='en') ? 'en' : (mode==='cn') ? 'cn' : (Math.random()<0.5 ? 'cn':'en');
+  let otherLang = (correctLang==='cn') ? 'en' : 'cn';
+  let correctAns = q[correctLang];
+  let bannedTwin = q[otherLang];
+  if (!correctAns){ correctLang = otherLang; otherLang = (correctLang==='cn')?'en':'cn'; correctAns = q[correctLang]; bannedTwin = q[otherLang]; }
+  const norm = s => (s||'').trim().toLowerCase();
+  const banCN = norm(q.cn), banEN = norm(q.en), banTwin = norm(bannedTwin);
+  const seen = new Set([norm(correctAns)]), opts = [correctAns];
+  while (opts.length < 4){
+    const list = (window.vocab||vocab); if(!list.length) break;
+    const rnd = list[Math.floor(Math.random()*list.length)];
+    const pickLang = (mode==='mix') ? (Math.random()<0.5?'cn':'en') : mode;
+    const pick = pickLang==='cn' ? rnd.cn : rnd.en;
+    const n = norm(pick);
+    if (!n || n === norm(correctAns) || n===banTwin || n===banCN || n===banEN || seen.has(n)) continue;
+    seen.add(n); opts.push(pick);
+  }
+  opts.sort(()=>Math.random()-0.5);
+  return {correctAns, opts};
+}
+function renderOptions(correctAns, opts){
+  const box = document.getElementById('options');
+  box.innerHTML='';
+  const letters=['A','B','C','D'];
+  (opts||[]).slice(0,4).forEach((opt,i)=>{
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.className='option';
+    btn.dataset.value=opt;
+    btn.innerHTML = `<span class="opt-badge">${letters[i]||''}</span><span class="opt-text">${opt}</span>`;
+    btn.onclick=()=>checkAnswer(btn.dataset.value, correctAns, btn);
+    box.appendChild(btn);
+  });
+}
+
+function rebuildOptionsForCurrent(){
+  if (!window.currentQ) return;
+  const b = buildOptionsFor(window.currentQ);
+  renderOptions(b.correctAns, b.opts);
+}
+
+function checkAnswer(choice, correct, btn){
+  if (choice === correct){
+    btn.classList.add('correct');
+    showMessage({ text: 'Tahniah! 🏆', type: 'success' });
+    setTimeout(()=> launchConfetti(), 80);
+
+    score++; answeredCount++;
+    document.getElementById('score').innerText = 'Markah: ' + score;
+    const isLast = answeredCount >= getTotalQuestions();
+    setTimeout(()=>{ isLast ? endGame() : nextQuestion(); }, isLast ? 700 : 500);
+  } else {
+    btn.classList.add('wrong');
+    if (score > 0) score--;
+    document.getElementById('score').innerText = 'Markah: ' + score;
+    showMessage({ text: 'Cuba lagi! ✖️', type: 'error' });
+  }
+}
+
+// ====== GAME FLOW ======
+function startGame(){
+  document.getElementById('end-screen').style.visibility = 'hidden';
+  score = 0; answeredCount = 0; elapsed = 0;
+  document.getElementById('score').innerText = 'Markah: 0';
+  document.getElementById('progress').innerText = `Soalan: 0/${getTotalQuestions()}`;
+  // gunakan senarai semasa (custom jika ada)
+  questions = (window.vocab || vocab).slice();
+  shuffle(questions);
+  startTimer();
+  nextQuestion();
+}
+
+function nextQuestion(){
+  if ((questions||[]).length === 0){ endGame(); return; }
+  currentQ = questions.shift();
+  window.currentQ = currentQ;
+  document.getElementById('word').innerText = currentQ.bm;
+  document.getElementById('progress').innerText = `Soalan: ${answeredCount+1}/${getTotalQuestions()}`;
+  // bina pilihan berdasarkan mod (Campur/EN/CN) & elak kembar CN-EN
+  const built = buildOptionsFor(currentQ);
+  renderOptions(built.correctAns, built.opts);
+}
+function endGame(){
+  clearInterval(timer);
+  document.getElementById('final-score').innerText = `Markah akhir: ${score}/${getTotalQuestions()}`;
+  document.getElementById('final-time').innerText = `Masa diambil: ${Math.floor(elapsed/60)} minit ${elapsed%60} saat`;
+  document.getElementById('end-screen').style.visibility = 'visible';
+}
+
+document.getElementById('restart').addEventListener('click', startGame);
+
+// mula permainan
+startGame();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+
+
+
+
+
+
+<!-- BGM SCRIPT -->
+<script>
+(function(){
+  const audio = document.getElementById('bgm-audio');
+  const btn   = document.getElementById('toggle-bgm');
+  const volEl = document.getElementById('bgm-vol');
+  const volTxt= document.getElementById('bgm-vol-val');
+  if (!audio || !btn) return;
+
+  // Set volume from storage (default 0.6)
+  let storedVol = Number(localStorage.getItem('bgmVolume'));
+  if (!(storedVol >= 0 && storedVol <= 1)) storedVol = 0.6;
+  audio.volume = storedVol;
+  if (volEl){ volEl.value = Math.round(storedVol*100); if (volTxt) volTxt.textContent = volEl.value + '%'; }
+
+  // state & desired to avoid race
+  let state   = 'paused';
+  let desired = localStorage.getItem('bgmDesired') || localStorage.getItem('bgmState') || 'paused';
+  const setDesired = v => { desired=v; localStorage.setItem('bgmDesired', v); };
+  const setState   = v => { state=v; localStorage.setItem('bgmState', v); ui(); };
+
+  function ui(){
+    if(state==='playing'){ btn.textContent='⏸️ Jeda Muzik'; btn.classList.add('pause'); }
+    else{ btn.textContent='▶️ Mula Muzik'; btn.classList.remove('pause'); }
+  }
+  async function start(){
+    setDesired('playing');
+    try{
+      if (audio.readyState < 2) audio.load();
+      btn.disabled = true;
+      await audio.play();
+    }catch(e){ armUnlock(); }
+    finally{ btn.disabled=false; }
+  }
+  function stop(){ setDesired('paused'); audio.pause(); }
+
+  function armUnlock(){
+    if (window.__bgmUnlockArmed) return;
+    window.__bgmUnlockArmed = true;
+    const unlock = ()=>{
+      window.__bgmUnlockArmed = false; start();
+      window.removeEventListener('pointerdown', unlock);
+      document.removeEventListener('keydown', unlock);
+    };
+    window.addEventListener('pointerdown', unlock, {once:true});
+    document.addEventListener('keydown', unlock, {once:true});
+  }
+
+  // Button handlers
+  btn.addEventListener('click', ()=>{ if (state==='playing') stop(); else start(); });
+
+  // Volume handlers
+  if (volEl){
+    volEl.addEventListener('input', ()=>{
+      const v = Math.min(100, Math.max(0, Number(volEl.value)))/100;
+      audio.volume = v; localStorage.setItem('bgmVolume', String(v));
+      if (volTxt) volTxt.textContent = Math.round(v*100) + '%';
+    });
+  }
+
+  // Sync to actual events
+  audio.addEventListener('playing', ()=>{ if (desired!=='playing'){ audio.pause(); return; } setState('playing'); });
+  audio.addEventListener('pause',   ()=>{ setState('paused'); });
+
+  ui(); if (desired==='playing') start();
+  audio.addEventListener('error', ()=>{ console.warn('Audio gagal dimuat. Pastikan fail mp3 sefoder dengan index.html'); });
+})();
+</script>
+
+<script>
+// Sinkron dengan pilihan jawapan & tukar serta-merta
+(function(){
+  const sel = document.getElementById('ans-mode');
+  if (!sel) return;
+  const saved = localStorage.getItem('ansLangMode') || 'mix';
+  sel.value = saved;
+  sel.addEventListener('change', ()=>{
+    localStorage.setItem('ansLangMode', sel.value);
+    if (typeof rebuildOptionsForCurrent === 'function') rebuildOptionsForCurrent();
+  });
+})();
+</script>
+</body>
+</html>
